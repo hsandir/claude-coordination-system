@@ -1,0 +1,82 @@
+{
+  "name": "claude-coordination-system",
+  "version": "1.0.0",
+  "description": "🤖 Multi-Claude Parallel Processing Coordination System - Organize multiple Claude AI instances to work together seamlessly on complex development tasks",
+  "main": "index.js",
+  "bin": {
+    "claude-coord": "./bin/cli.js",
+    "claude-worker": "./bin/worker.js",
+    "claude-monitor": "./bin/monitor.js"
+  },
+  "scripts": {
+    "install": "node install.js",
+    "test": "node test/system-test.js",
+    "dev": "node bin/cli.js --mode=dev",
+    "demo": "node examples/demo.js",
+    "docs": "node scripts/generate-docs.js"
+  },
+  "keywords": [
+    "claude",
+    "ai",
+    "coordination",
+    "parallel-processing",
+    "multi-worker",
+    "development",
+    "automation",
+    "task-management",
+    "file-locking",
+    "dependency-management",
+    "typescript",
+    "eslint",
+    "nextjs",
+    "react",
+    "productivity"
+  ],
+  "author": "HS",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hakansandirlioglu/claude-coordination-system.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hakansandirlioglu/claude-coordination-system/issues"
+  },
+  "homepage": "https://github.com/hakansandirlioglu/claude-coordination-system#readme",
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^11.0.0",
+    "inquirer": "^9.2.0",
+    "fs-extra": "^11.1.0",
+    "chokidar": "^3.5.3",
+    "node-machine-id": "^1.1.12",
+    "semver": "^7.5.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@types/node": "^20.8.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "examples/",
+    "templates/",
+    "docs/",
+    "install.js",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "preferGlobal": true,
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}
