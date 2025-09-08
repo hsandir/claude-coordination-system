@@ -16,7 +16,8 @@
     "dev": "node bin/cli.js --mode=dev",
     "demo": "node examples/demo.js",
     "docs": "echo 'Documentation available in README.md'",
-    "prepublishOnly": "npm test"
+    "prepublishOnly": "npm test",
+    "postinstall": "node -e \"console.log('\\n✅ Multi-Claude Coordination System installed!\\n📖 Run: claude-coord welcome\\n')\""
   },
   "keywords": [
     "claude",

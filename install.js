@@ -23,6 +23,9 @@ class Installer {
     console.log(chalk.blue('🚀 Installing Multi-Claude Coordinator...'));
     
     try {
+      // Check Claude Code dependency first
+      await this.checkClaudeCodeDependency();
+      
       // Create global directories
       await this.createDirectories();
       
@@ -45,6 +48,95 @@ class Installer {
       console.error(chalk.red('❌ Installation failed:'), error.message);
       process.exit(1);
     }
+  }
+
+  async checkClaudeCodeDependency() {
+    console.log(chalk.blue('🔍 Checking Claude Code dependency...'));
+    
+    // Check if claude command exists
+    const claudeCommands = ['claude', 'claude-code'];
+    let claudeFound = false;
+    let claudePath = null;
+    
+    for (const cmd of claudeCommands) {
+      try {
+        const result = execSync(`which ${cmd}`, { encoding: 'utf8', stdio: 'pipe' });
+        if (result.trim()) {
+          claudeFound = true;
+          claudePath = result.trim();
+          console.log(chalk.green(`✅ Found Claude Code at: ${claudePath}`));
+          break;
+        }
+      } catch (error) {
+        // Command not found, continue checking
+      }
+    }
+    
+    // Additional checks for Claude Code installations
+    if (!claudeFound) {
+      // Check for npm global installations
+      try {
+        const npmList = execSync('npm list -g --depth=0', { encoding: 'utf8', stdio: 'pipe' });
+        if (npmList.includes('claude') || npmList.includes('@anthropic')) {
+          claudeFound = true;
+          console.log(chalk.green('✅ Found Claude Code via npm global installation'));
+        }
+      } catch (error) {
+        // npm command failed
+      }
+    }
+    
+    // Check for common Claude installation paths
+    if (!claudeFound) {
+      const commonPaths = [
+        '/usr/local/bin/claude',
+        '/opt/claude/bin/claude',
+        path.join(os.homedir(), '.local/bin/claude'),
+        path.join(os.homedir(), '.claude/bin/claude')
+      ];
+      
+      for (const claudeExecutable of commonPaths) {
+        if (await fs.pathExists(claudeExecutable)) {
+          claudeFound = true;
+          claudePath = claudeExecutable;
+          console.log(chalk.green(`✅ Found Claude Code at: ${claudePath}`));
+          break;
+        }
+      }
+    }
+    
+    // Check if running inside Claude Code environment
+    if (!claudeFound) {
+      if (process.env.CLAUDE_CODE || process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY) {
+        claudeFound = true;
+        console.log(chalk.green('✅ Detected Claude Code environment variables'));
+      }
+    }
+    
+    if (!claudeFound) {
+      console.error(chalk.red('❌ Claude Code not found!'));
+      console.log(chalk.yellow('📋 Multi-Claude Coordination System requires Claude Code to function.'));
+      console.log();
+      console.log(chalk.cyan('🔧 Please install Claude Code first:'));
+      console.log('  • Download from: https://claude.ai/code');
+      console.log('  • Or install via npm: npm install -g @anthropic/claude-code');
+      console.log('  • Or use Anthropic CLI tools');
+      console.log();
+      console.log(chalk.cyan('🎯 What this system does:'));
+      console.log('  • Coordinates multiple Claude instances working together');
+      console.log('  • Prevents file conflicts between Claude workers');
+      console.log('  • Manages task dependencies and progress tracking');
+      console.log('  • Provides real-time monitoring of Claude activities');
+      console.log();
+      console.log(chalk.cyan('💡 After installing Claude Code, run again:'));
+      console.log('  npm install -g claude-coordination-system');
+      console.log();
+      
+      throw new Error('Claude Code dependency not satisfied');
+    }
+    
+    // Store Claude path for future reference
+    this.claudePath = claudePath;
   }
 
   async createDirectories() {
