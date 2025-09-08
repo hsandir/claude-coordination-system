@@ -73,6 +73,13 @@ class WorkerCore extends EventEmitter {
       // Start heartbeat
       this.startHeartbeat();
       
+      // Check if in standby mode
+      if (this.groupId === 'STANDBY') {
+        console.log(chalk.yellow(`⏸️  ${this.workerId} waiting in standby mode...`));
+        await this.updateStatus('standby');
+        return; // Don't execute tasks, wait for assignment
+      }
+      
       // Wait for dependencies
       await this.waitForDependencies();
       
@@ -596,6 +603,30 @@ class WorkerCore extends EventEmitter {
     }
     
     this.isRunning = false;
+  }
+
+  /**
+   * Assign worker to a specific group (for standby mode)
+   */
+  async assignToGroup(groupId) {
+    if (this.groupId !== 'STANDBY') {
+      throw new Error('Worker must be in STANDBY mode to assign to group');
+    }
+    
+    console.log(chalk.blue(`🔄 Switching from STANDBY to ${groupId}`));
+    this.groupId = groupId;
+    
+    // Update status
+    await this.updateStatus('initializing');
+    
+    // Restart execution with new group
+    this.executeTasks().then(() => {
+      console.log(chalk.green(`🎉 ${this.workerId} completed all tasks for ${groupId}`));
+    }).catch((error) => {
+      console.error(chalk.red(`❌ ${this.workerId} failed:`, error.message));
+    });
+    
+    return true;
   }
 
   async shutdown() {

@@ -254,12 +254,95 @@ claude-monitor
 4. **In your current Claude terminal:** `claude-worker --id=claude_main --group=TYPESCRIPT`
 5. **Now you have 2 Claude workers** coordinating automatically!
 
-### Worker Assignment Strategy
+### System Architecture Visualization
+```
+┌─────────────────────┐
+│   📊 COORDINATOR    │  ← Only manages & organizes
+│   (Terminal 1)      │
+│   - File locks      │
+│   - Heartbeat       │
+│   - Dependencies    │
+└──────────┬──────────┘
+           │
+    ┌──────┴──────┐
+    │             │
+┌───▼───┐    ┌───▼───┐    ┌───▼───┐
+│WORKER │    │WORKER │    │WORKER │  ← Does actual work
+│Claude │    │Claude │    │Claude │
+│   A   │    │   B   │    │   C   │
+└───────┘    └───────┘    └───────┘
+```
+
+**Coordinator Role:** Manager 👔
+- 🧠 Central brain - organizes entire system
+- 💓 Heartbeat monitoring (15s intervals)  
+- 🔒 File lock management
+- 📊 State management
+- 🔄 Dependency chain control
+- ⚠️ Dead worker cleanup
+
+**Worker Role:** Developer 👩‍💻
+- Executes actual coding tasks
+- Follows coordinator instructions
+- Reports progress via heartbeat
+- Respects file locks and dependencies
+
+### Worker Assignment Strategies
+
+**Method 1: Direct Assignment**
 ```bash
 # Assign workers based on expertise
 claude-worker --id=claude_backend --group=API          # Backend specialist
 claude-worker --id=claude_frontend --group=UI          # Frontend specialist  
 claude-worker --id=claude_devops --group=DATABASE      # DevOps specialist
+```
+
+**Method 2: Standby Mode (Interactive Assignment)** 🆕
+```bash
+# Start worker in standby mode - no group assigned
+claude-worker --id=claude_flex --standby
+
+# Interactive session starts:
+⏸️  Starting in STANDBY mode
+   Waiting for group assignment...
+   Available groups:
+     - TYPESCRIPT: TypeScript & Build System
+     - ESLINT: ESLint & Code Quality  
+     - UI: UI Components & Pages
+     - API: API Routes & Backend
+
+📝 Interactive Commands:
+  join <group>     - Join a work group
+  list             - List available groups
+  status           - Show current status
+  quit             - Exit worker
+
+claude> join TYPESCRIPT
+🚀 Joining group: TYPESCRIPT
+🔄 Switching from STANDBY to TYPESCRIPT
+🎉 claude_flex completed all tasks for TYPESCRIPT
+```
+
+### Standby Mode Benefits
+✅ **Dynamic Assignment**: Assign workers to groups on-demand  
+✅ **Resource Flexibility**: Keep workers ready without fixed roles  
+✅ **Interactive Control**: Real-time group switching  
+✅ **Load Balancing**: Move workers where they're needed most
+
+### Practical Standby Usage
+```bash
+# Terminal 1: Coordinator
+claude-coord start
+
+# Terminal 2-4: Flexible workers in standby  
+claude-worker --id=claude_a --standby
+claude-worker --id=claude_b --standby
+claude-worker --id=claude_c --standby
+
+# Assign workers as needed:
+# claude_a: join TYPESCRIPT
+# claude_b: join ESLINT  
+# claude_c: join UI
 ```
 
 ---
