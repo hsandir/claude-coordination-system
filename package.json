@@ -1,6 +1,6 @@
 {
   "name": "claude-coordination-system",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "🤖 Multi-Claude Parallel Processing Coordination System - Organize multiple Claude AI instances to work together seamlessly on complex development tasks",
   "main": "index.js",
   "bin": {
