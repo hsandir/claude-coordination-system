@@ -153,6 +153,117 @@ claude-monitor --export              # Export metrics
 
 ---
 
+## 🧠 Dynamic Group Creation
+
+### Creating Custom Work Groups
+```bash
+# Interactive group creation
+claude-coord create-groups --interactive
+
+# Quick group from description  
+claude-coord create-task --description "Build user authentication system with JWT"
+
+# Split large work into multiple groups
+claude-coord split-work --tasks=3 --description="E-commerce platform with payments"
+```
+
+### Example: Custom Feature Development
+**User Request:** *"I want 3 Claude instances: one for authentication, one for payment integration, one for admin dashboard"*
+
+**System Response:**
+```bash
+✅ Created 3 work groups:
+   🔹 AUTH_SYSTEM: Authentication & user management  
+   🔹 PAYMENT_INTEGRATION: Stripe/payment processing
+   🔹 ADMIN_DASHBOARD: Admin panel & analytics
+
+🚀 Ready to coordinate - run these in separate terminals:
+   claude-worker --id=claude_auth --group=AUTH_SYSTEM
+   claude-worker --id=claude_payment --group=PAYMENT_INTEGRATION  
+   claude-worker --id=claude_admin --group=ADMIN_DASHBOARD
+```
+
+### Smart File Pattern Detection
+The system automatically infers file patterns for common features:
+```javascript
+{
+  "AUTH_SYSTEM": {
+    "files": ["src/auth/**/*", "middleware.ts", "*/login/**/*", "*/register/**/*"]
+  },
+  "PAYMENT_INTEGRATION": {
+    "files": ["src/payment/**/*", "*/checkout/**/*", "*/stripe/**/*"],
+    "dependencies": ["AUTH_SYSTEM"]  // Payments need auth first
+  }
+}
+```
+
+---
+
+## 👥 Integrating Active Claude Instances
+
+### If You Already Have Claude Running
+**Scenario:** You're currently working with Claude and want to add parallel workers.
+
+**Step 1:** Initialize coordination in your current project
+```bash
+# In your current terminal with Claude
+cd your-project
+claude-coord init --type=nextjs  # Or your project type
+```
+
+**Step 2:** Start the coordinator 
+```bash  
+# New terminal - Terminal 1
+claude-coord start
+```
+
+**Step 3:** Convert your current Claude to a worker
+```bash
+# In THIS terminal (where Claude is active)
+claude-worker --id=claude_main --group=TYPESCRIPT --verbose
+
+# This Claude becomes the TYPESCRIPT group worker
+# It will receive TypeScript-related tasks automatically
+```
+
+**Step 4:** Add more Claude instances
+```bash
+# New terminal - Terminal 2  
+claude-worker --id=claude_eslint --group=ESLINT --verbose
+
+# New terminal - Terminal 3
+claude-worker --id=claude_ui --group=UI --verbose
+```
+
+**Step 5:** Monitor all workers
+```bash
+# New terminal - Terminal 4
+claude-monitor
+```
+
+### Practical Integration Example
+**Current situation:** You have Claude Code open and working on a Next.js project.
+
+**Integration steps:**
+1. **Keep working** - don't close your current Claude
+2. Run `claude-coord init` in your project 
+3. Open **3 new terminals**:
+   - Terminal 1: `claude-coord start` (coordinator)
+   - Terminal 2: `claude-worker --id=claude_b --group=ESLINT`  
+   - Terminal 3: `claude-monitor` (dashboard)
+4. **In your current Claude terminal:** `claude-worker --id=claude_main --group=TYPESCRIPT`
+5. **Now you have 2 Claude workers** coordinating automatically!
+
+### Worker Assignment Strategy
+```bash
+# Assign workers based on expertise
+claude-worker --id=claude_backend --group=API          # Backend specialist
+claude-worker --id=claude_frontend --group=UI          # Frontend specialist  
+claude-worker --id=claude_devops --group=DATABASE      # DevOps specialist
+```
+
+---
+
 ## 🔧 Advanced Usage
 
 ### Custom Task Definitions
