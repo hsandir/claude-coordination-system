@@ -290,6 +290,129 @@ program
     }
   });
 
+// Update system via NPM
+program
+  .command('update')
+  .description('Update coordination system to latest version')
+  .option('--force', 'Force update without confirmation')
+  .action(async (options) => {
+    try {
+      console.log(chalk.blue('📦 Checking for updates...'));
+      
+      const { exec } = require('child_process');
+      const util = require('util');
+      const execAsync = util.promisify(exec);
+      
+      // Check current version
+      const { version: currentVersion } = require('../package.json');
+      console.log(chalk.gray(`Current version: ${currentVersion}`));
+      
+      // Check latest version
+      try {
+        const { stdout } = await execAsync('npm view claude-coordination-system version');
+        const latestVersion = stdout.trim();
+        console.log(chalk.gray(`Latest version: ${latestVersion}`));
+        
+        if (currentVersion === latestVersion) {
+          console.log(chalk.green('✅ You are already on the latest version'));
+          return;
+        }
+        
+        if (!options.force) {
+          const shouldUpdate = await askYesNo(
+            chalk.yellow(`Update from v${currentVersion} to v${latestVersion}?`),
+            'y'
+          );
+          if (!shouldUpdate) {
+            console.log(chalk.gray('❌ Update cancelled'));
+            return;
+          }
+        }
+        
+      } catch (error) {
+        console.log(chalk.yellow('⚠️  Could not check latest version, proceeding with update...'));
+      }
+      
+      console.log(chalk.yellow('🔄 Starting zero-downtime update...'));
+      
+      // Save current coordinator status
+      const projectRoot = process.cwd();
+      const coordinator = new CoordinatorCore(projectRoot);
+      let coordinatorWasRunning = false;
+      let currentPort = 7777;
+      
+      try {
+        const status = await coordinator.getSystemStatus();
+        coordinatorWasRunning = true;
+        console.log(chalk.green(`✅ Detected running coordinator with ${status.activeWorkers} active workers`));
+      } catch (error) {
+        console.log(chalk.gray('ℹ️  No running coordinator detected'));
+      }
+      
+      // Update the package
+      console.log(chalk.blue('📥 Downloading updates...'));
+      await execAsync('npm update -g claude-coordination-system');
+      console.log(chalk.green('✅ Package updated successfully'));
+      
+      // If coordinator was running, restart it
+      if (coordinatorWasRunning) {
+        console.log(chalk.yellow('🔄 Restarting coordinator...'));
+        
+        // Try to find available port
+        const net = require('net');
+        const isPortAvailable = (port) => {
+          return new Promise((resolve) => {
+            const server = net.createServer();
+            server.listen(port, () => {
+              server.close();
+              resolve(true);
+            });
+            server.on('error', () => resolve(false));
+          });
+        };
+        
+        // Find next available port if 7777 is busy
+        let testPort = 7777;
+        while (!(await isPortAvailable(testPort)) && testPort < 7800) {
+          testPort++;
+        }
+        
+        if (testPort !== 7777) {
+          console.log(chalk.yellow(`Port 7777 busy, using port ${testPort}`));
+          currentPort = testPort;
+        }
+        
+        // Start updated coordinator
+        const newCoordinator = new CoordinatorCore(projectRoot, {
+          port: currentPort
+        });
+        
+        await newCoordinator.start();
+        console.log(chalk.green(`✅ Updated coordinator started on port ${currentPort}`));
+        console.log(chalk.cyan(`🌐 Web dashboard: http://localhost:${currentPort}`));
+        
+        // Graceful shutdown
+        process.on('SIGINT', async () => {
+          console.log(chalk.yellow('\n🛑 Shutting down coordinator...'));
+          await newCoordinator.stop();
+          process.exit(0);
+        });
+        
+        // Keep running
+        console.log(chalk.gray('Press Ctrl+C to stop coordinator'));
+        await new Promise(() => {}); // Keep alive
+      } else {
+        console.log(chalk.green('✅ Update completed successfully'));
+        console.log(chalk.cyan('Run "claude-coord start" to begin coordination'));
+      }
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Update failed:'), error.message);
+      console.log(chalk.yellow('💡 Try running: npm update -g claude-coordination-system'));
+      process.exit(1);
+    }
+  });
+
 // Restart coordinator (stops current, starts new)
 program
   .command('restart')

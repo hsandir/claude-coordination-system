@@ -204,17 +204,54 @@ class WebDashboard {
         <div class="commands-panel">
             <h3>Quick Commands</h3>
             <p style="margin-bottom: 15px; color: #bbb;">Use these commands in your terminal:</p>
-            <div>
-                <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-coord status</code>
-                <button class="command-btn" onclick="copyToClipboard('claude-coord status')">Copy</button>
+            
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #4a9eff; margin-bottom: 10px;">System Status</h4>
+                <div>
+                    <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-coord status</code>
+                    <button class="command-btn" onclick="copyToClipboard('claude-coord status')">Copy</button>
+                </div>
             </div>
-            <div style="margin-top: 10px;">
-                <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-worker --id=worker_1 --standby</code>
-                <button class="command-btn" onclick="copyToClipboard('claude-worker --id=worker_1 --standby')">Copy</button>
+            
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #4a9eff; margin-bottom: 10px;">Worker Management</h4>
+                <div style="margin-bottom: 8px;">
+                    <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-worker --id=worker_1 --standby</code>
+                    <button class="command-btn" onclick="copyToClipboard('claude-worker --id=worker_1 --standby')">Copy</button>
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-coord reassign-worker --worker=worker_1 --group=TYPESCRIPT</code>
+                    <button class="command-btn" onclick="copyToClipboard('claude-coord reassign-worker --worker=worker_1 --group=TYPESCRIPT')">Copy</button>
+                </div>
+                <div>
+                    <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-coord remove-worker --worker=worker_1</code>
+                    <button class="command-btn" onclick="copyToClipboard('claude-coord remove-worker --worker=worker_1')">Copy</button>
+                </div>
             </div>
-            <div style="margin-top: 10px;">
-                <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-coord reassign-worker --worker=worker_1 --group=TYPESCRIPT</code>
-                <button class="command-btn" onclick="copyToClipboard('claude-coord reassign-worker --worker=worker_1 --group=TYPESCRIPT')">Copy</button>
+            
+            <div style="margin-bottom: 20px;">
+                <h4 style="color: #4a9eff; margin-bottom: 10px;">System Control</h4>
+                <div style="margin-bottom: 8px;">
+                    <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-coord stop</code>
+                    <button class="command-btn" onclick="copyToClipboard('claude-coord stop')">Copy</button>
+                    <span style="color: #ffa500; font-size: 0.8rem; margin-left: 10px;">⚠️ Stops all workers</span>
+                </div>
+                <div style="margin-bottom: 8px;">
+                    <code style="background: #1a1a1a; padding: 2px 6px; border-radius: 3px; margin-right: 10px;">claude-coord update</code>
+                    <button class="command-btn" onclick="copyToClipboard('claude-coord update')">Copy</button>
+                    <span style="color: #00ff88; font-size: 0.8rem; margin-left: 10px;">✨ Zero-downtime update</span>
+                </div>
+            </div>
+            
+            <div style="border: 1px solid #444; border-radius: 8px; padding: 15px; background: #1a1a1a;">
+                <h4 style="color: #ffa500; margin-bottom: 10px;">🛠️ System Management Guide</h4>
+                <div style="font-size: 0.9rem; line-height: 1.6;">
+                    <p style="margin-bottom: 8px;"><strong>To stop coordinator:</strong> Press <kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">Ctrl+C</kbd> in coordinator terminal</p>
+                    <p style="margin-bottom: 8px;"><strong>To stop a worker:</strong> Press <kbd style="background: #333; padding: 2px 6px; border-radius: 3px;">Ctrl+C</kbd> in worker terminal</p>
+                    <p style="margin-bottom: 8px;"><strong>To update system:</strong> Run <code style="background: #333; padding: 1px 4px; border-radius: 2px;">claude-coord update</code> (maintains running workers)</p>
+                    <p style="margin-bottom: 8px;"><strong>Port conflicts:</strong> System auto-detects and uses next available port (7778, 7779, etc.)</p>
+                    <p><strong>Emergency shutdown:</strong> Run <code style="background: #333; padding: 1px 4px; border-radius: 2px;">claude-coord stop</code> to stop all workers</p>
+                </div>
             </div>
         </div>
     </div>
