@@ -39,12 +39,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hakansandirlioglu/claude-coordination-system.git"
+    "url": "git+https://github.com/hsandir/claude-coordination-system.git"
   },
   "bugs": {
-    "url": "https://github.com/hakansandirlioglu/claude-coordination-system/issues"
+    "url": "https://github.com/hsandir/claude-coordination-system/issues"
   },
-  "homepage": "https://github.com/hakansandirlioglu/claude-coordination-system#readme",
+  "homepage": "https://github.com/hsandir/claude-coordination-system#readme",
   "dependencies": {
     "chalk": "^5.3.0",
     "commander": "^11.0.0",
