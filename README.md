@@ -264,6 +264,75 @@ claude-worker --id=claude_devops --group=DATABASE      # DevOps specialist
 
 ---
 
+## 🧠 Memory Management & Performance
+
+### Automatic Resource Management
+The system includes comprehensive memory monitoring and cleanup to prevent resource exhaustion:
+
+```javascript
+// Each worker automatically monitors:
+{
+  "maxMemoryMB": 256,        // 256MB default per worker
+  "checkInterval": 30000,    // Check every 30 seconds  
+  "warningThreshold": 0.8,   // 80% warning threshold
+  "criticalThreshold": 0.9   // 90% critical threshold
+}
+```
+
+### Built-in Protections
+✅ **Memory Leak Prevention**
+- Automatic cache size limits (100 items default)
+- TTL-based cache expiration (5 min default)
+- Periodic garbage collection triggers
+
+✅ **Resource Cleanup**  
+- Old log file rotation (keep 10 files)
+- State history cleanup (keep 50 snapshots)
+- Temporary directory cleanup
+- File lock auto-release on shutdown
+
+✅ **Critical State Handling**
+- Memory warnings at 80% usage
+- Emergency cleanup at 90% usage  
+- Automatic worker restart recommendations
+- Graceful degradation under load
+
+### Memory Monitoring in Action
+```bash
+# Real-time memory display in monitor
+🤖 claude_main (TYPESCRIPT)
+  Status: Working  
+  Memory: 156MB / 256MB (61%) ✅
+  Last seen: 12s ago
+  Task: Fixing interface definitions
+
+⚠️  claude_heavy (UI)  
+  Status: Working
+  Memory: 220MB / 256MB (86%) ⚠️  
+  Last seen: 5s ago
+  Task: Processing large components
+```
+
+### Custom Memory Limits
+```bash
+# Set custom memory limits per worker
+claude-worker --id=claude_heavy --group=UI --memory=512  # 512MB limit
+claude-worker --id=claude_light --group=TYPESCRIPT --memory=128  # 128MB limit
+```
+
+### Performance Guarantees
+| Resource | Limit | Auto-Action |
+|----------|--------|-------------|
+| **Memory per worker** | 256MB default | Warning → Cleanup → Restart suggestion |
+| **Cache size** | 100 items | LRU eviction + TTL cleanup |
+| **Log files** | 10 files | Auto-rotation |
+| **State history** | 50 snapshots | Auto-pruning |
+| **Temp files** | 1 hour TTL | Auto-cleanup |
+
+**Result: Your system stays stable even with 10+ parallel Claude workers!** 🚀
+
+---
+
 ## 🔧 Advanced Usage
 
 ### Custom Task Definitions

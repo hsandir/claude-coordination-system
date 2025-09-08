@@ -22,6 +22,7 @@ program
   .option('--project-root <path>', 'Project root directory', process.cwd())
   .option('--verbose', 'Verbose logging')
   .option('--dry-run', 'Dry run mode (no actual changes)')
+  .option('--memory <mb>', 'Memory limit in MB', '256')
   .parse();
 
 const options = program.opts();
@@ -31,6 +32,7 @@ async function main() {
     console.log(chalk.blue(`🤖 Starting Claude Worker: ${options.id}`));
     console.log(chalk.gray(`📁 Project: ${path.basename(options.projectRoot)}`));
     console.log(chalk.gray(`🏷️  Group: ${options.group}`));
+    console.log(chalk.gray(`🧠 Memory limit: ${options.memory}MB`));
     
     // Validate configuration
     const configManager = new ConfigManager();
@@ -48,7 +50,8 @@ async function main() {
     // Initialize worker
     const worker = new WorkerCore(options.id, options.group, options.projectRoot, {
       verbose: options.verbose,
-      dryRun: options.dryRun
+      dryRun: options.dryRun,
+      maxMemoryMB: parseInt(options.memory)
     });
 
     // Graceful shutdown handling

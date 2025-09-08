@@ -130,6 +130,14 @@ class MonitorDashboard {
       console.log(`  ${statusIcon} ${chalk.bold(workerId)} (${worker.group})`);
       console.log(`    Status: ${this.formatWorkerStatus(worker.status)}`);
       console.log(`    Last seen: ${chalk.gray(lastSeen)}`);
+      
+      // Memory stats if available
+      if (worker.memory) {
+        const memColor = worker.memory.usage > 90 ? chalk.red : 
+                        worker.memory.usage > 80 ? chalk.yellow : chalk.green;
+        console.log(`    Memory: ${memColor(worker.memory.current + 'MB')} / ${worker.memory.limit}MB (${worker.memory.usage}%)`);
+      }
+      
       if (worker.current_task) {
         console.log(`    Task: ${chalk.yellow(worker.current_task)}`);
       }

@@ -9,6 +9,7 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const chalk = require('chalk');
 const EventEmitter = require('events');
+const MemoryManager = require('./memory-manager');
 
 const execAsync = promisify(exec);
 
@@ -36,6 +37,14 @@ class WorkerCore extends EventEmitter {
     this.heartbeatTimer = null;
     this.acquiredLocks = [];
     
+    // Initialize memory manager
+    this.memoryManager = new MemoryManager({
+      maxMemoryMB: options.maxMemoryMB || 256,  // 256MB default per worker
+      checkInterval: 30000,  // 30s check interval
+      warningThreshold: 0.8, // 80% warning
+      criticalThreshold: 0.9 // 90% critical
+    });
+    
     console.log(chalk.blue(`🤖 Worker initialized: ${this.workerId} (${this.groupId})`));
   }
 
@@ -51,6 +60,12 @@ class WorkerCore extends EventEmitter {
     
     try {
       console.log(chalk.green(`🚀 ${this.workerId} starting work on ${this.groupId}`));
+      
+      // Start memory monitoring
+      this.memoryManager.startMonitoring();
+      
+      // Setup memory event handlers
+      this.setupMemoryHandlers();
       
       // Register with coordinator
       await this.registerWithCoordinator();
@@ -528,10 +543,41 @@ class WorkerCore extends EventEmitter {
   }
 
   /**
+   * Setup memory management event handlers
+   */
+  setupMemoryHandlers() {
+    this.memoryManager.on('memoryWarning', (stats) => {
+      console.log(chalk.yellow(`⚠️  ${this.workerId} memory warning: ${stats.current}MB/${stats.max}MB`));
+    });
+    
+    this.memoryManager.on('memoryCritical', (stats) => {
+      console.log(chalk.red(`🚨 ${this.workerId} critical memory usage: ${stats.current}MB/${stats.max}MB`));
+      console.log(chalk.red('🔄 Consider restarting this worker'));
+    });
+    
+    this.memoryManager.on('criticalError', (error) => {
+      console.error(chalk.red(`💥 ${this.workerId} critical error: ${error.message}`));
+      this.shutdown();
+    });
+  }
+
+  /**
+   * Get memory statistics
+   */
+  getMemoryStats() {
+    return this.memoryManager.getStats();
+  }
+
+  /**
    * Cleanup and shutdown
    */
   async cleanup() {
     console.log(chalk.blue(`🧹 ${this.workerId} cleaning up...`));
+    
+    // Stop memory monitoring
+    if (this.memoryManager) {
+      await this.memoryManager.gracefulShutdown();
+    }
     
     // Stop heartbeat
     if (this.heartbeatTimer) {
