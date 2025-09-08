@@ -4,9 +4,9 @@
  */
 
 const chalk = require('chalk');
-const inquirer = require('inquirer');
 const fs = require('fs-extra');
 const path = require('path');
+const readline = require('readline');
 
 class WelcomeGuide {
   constructor() {
@@ -44,7 +44,7 @@ class WelcomeGuide {
     console.log();
     
     console.log(chalk.yellow('Press Enter to continue...'));
-    await inquirer.prompt([{ type: 'input', name: 'continue', message: '' }]);
+    await this.waitForEnter();
   }
 
   /**
@@ -57,30 +57,23 @@ class WelcomeGuide {
     console.log(chalk.gray('─'.repeat(40)));
     console.log();
     
-    const answers = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'showQuickStart',
-        message: 'Would you like to see a quick start guide?',
-        default: true
-      },
-      {
-        type: 'confirm',
-        name: 'createSampleProject',
-        message: 'Create a sample project for testing?',
-        default: false
-      },
-      {
-        type: 'list',
-        name: 'experienceLevel',
-        message: 'Your experience level with coordination systems:',
-        choices: [
-          { name: 'New to coordination systems', value: 'beginner' },
-          { name: 'Some experience with automation', value: 'intermediate' },
-          { name: 'Advanced user, show me the power', value: 'advanced' }
-        ]
-      }
-    ]);
+    const showQuickStart = await this.askYesNo('Would you like to see a quick start guide?', 'y');
+    const createSampleProject = await this.askYesNo('Create a sample project for testing?', 'n');
+    
+    console.log(chalk.yellow('Your experience level:'));
+    console.log('1. New to coordination systems');
+    console.log('2. Some experience with automation');
+    console.log('3. Advanced user, show me the power');
+    const levelChoice = await this.askQuestion('Choose (1-3)', '1');
+    
+    const experienceLevel = levelChoice === '2' ? 'intermediate' : 
+                           levelChoice === '3' ? 'advanced' : 'beginner';
+    
+    const answers = {
+      showQuickStart,
+      createSampleProject,
+      experienceLevel
+    };
 
     if (answers.showQuickStart) {
       await this.showQuickStart(answers.experienceLevel);
@@ -359,7 +352,51 @@ class WelcomeGuide {
 
   async waitForUser() {
     console.log(chalk.gray('Press Enter to continue...'));
-    await inquirer.prompt([{ type: 'input', name: 'continue', message: '' }]);
+    await this.waitForEnter();
+  }
+
+  async waitForEnter() {
+    return new Promise((resolve) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      rl.question('', () => {
+        rl.close();
+        resolve();
+      });
+    });
+  }
+
+  async askQuestion(question, defaultValue = '') {
+    return new Promise((resolve) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      
+      const prompt = defaultValue ? `${question} (${defaultValue}): ` : `${question}: `;
+      rl.question(prompt, (answer) => {
+        rl.close();
+        resolve(answer.trim() || defaultValue);
+      });
+    });
+  }
+
+  async askYesNo(question, defaultValue = 'y') {
+    return new Promise((resolve) => {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      
+      const prompt = `${question} (y/n) [${defaultValue}]: `;
+      rl.question(prompt, (answer) => {
+        rl.close();
+        const response = answer.trim().toLowerCase() || defaultValue;
+        resolve(response === 'y' || response === 'yes');
+      });
+    });
   }
 }
 

@@ -9,7 +9,7 @@ const { Command } = require('commander');
 const chalk = require('chalk');
 const fs = require('fs-extra');
 const path = require('path');
-const inquirer = require('inquirer');
+const readline = require('readline');
 const { machineIdSync } = require('node-machine-id');
 const CoordinatorCore = require('../src/coordinator-core');
 const ProjectDetector = require('../src/project-detector');
@@ -17,6 +17,38 @@ const ConfigManager = require('../src/config-manager');
 const WelcomeGuide = require('../src/welcome-guide');
 
 const program = new Command();
+
+// Helper function for readline input
+async function askQuestion(question, defaultValue = '') {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    
+    const prompt = defaultValue ? `${question} (${defaultValue}): ` : `${question}: `;
+    rl.question(prompt, (answer) => {
+      rl.close();
+      resolve(answer.trim() || defaultValue);
+    });
+  });
+}
+
+async function askYesNo(question, defaultValue = 'y') {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    
+    const prompt = `${question} (y/n) [${defaultValue}]: `;
+    rl.question(prompt, (answer) => {
+      rl.close();
+      const response = answer.trim().toLowerCase() || defaultValue;
+      resolve(response === 'y' || response === 'yes');
+    });
+  });
+}
 
 program
   .name('claude-coord')
@@ -46,26 +78,15 @@ program
       
       // Interactive setup if requested
       if (options.interactive) {
-        const answers = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'projectName',
-            message: 'Project name:',
-            default: path.basename(projectRoot)
-          },
-          {
-            type: 'number',
-            name: 'maxWorkers',
-            message: 'Maximum number of workers:',
-            default: 6
-          },
-          {
-            type: 'confirm',
-            name: 'autoBackup',
-            message: 'Enable automatic backups?',
-            default: true
-          }
-        ]);
+        const projectName = await askQuestion('Project name', path.basename(projectRoot));
+        const maxWorkers = parseInt(await askQuestion('Maximum number of workers', '6'));
+        const autoBackup = await askYesNo('Enable automatic backups?', 'y');
+        
+        const answers = {
+          projectName,
+          maxWorkers,
+          autoBackup
+        };
         
         // Create custom config
         const config = await configManager.createProjectConfig(projectRoot, {
@@ -412,42 +433,23 @@ program
       const configManager = new ConfigManager();
       
       if (options.interactive) {
-        const answers = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'maxWorkers',
-            message: 'Maximum workers allowed:',
-            default: '6'
-          },
-          {
-            type: 'input',
-            name: 'memoryLimit',
-            message: 'Memory limit per worker (MB):',
-            default: '256'
-          },
-          {
-            type: 'confirm',
-            name: 'autoBackup',
-            message: 'Enable automatic backups before changes?',
-            default: true
-          },
-          {
-            type: 'confirm',
-            name: 'strictDependencies',
-            message: 'Enforce strict dependency checking?',
-            default: true
-          },
-          {
-            type: 'number',
-            name: 'heartbeatInterval',
-            message: 'Worker heartbeat interval (seconds):',
-            default: 15
-          }
-        ]);
+        const maxWorkers = parseInt(await askQuestion('Maximum workers allowed', '6'));
+        const memoryLimit = parseInt(await askQuestion('Memory limit per worker (MB)', '256'));
+        const autoBackup = await askYesNo('Enable automatic backups before changes?', 'y');
+        const strictDependencies = await askYesNo('Enforce strict dependency checking?', 'y');
+        const heartbeatInterval = parseInt(await askQuestion('Worker heartbeat interval (seconds)', '15'));
+        
+        const answers = {
+          maxWorkers,
+          memoryLimit,
+          autoBackup,
+          strictDependencies,
+          heartbeatInterval
+        };
         
         const rulesConfig = {
-          maxWorkers: parseInt(answers.maxWorkers),
-          memoryLimitMB: parseInt(answers.memoryLimit),
+          maxWorkers: answers.maxWorkers,
+          memoryLimitMB: answers.memoryLimit,
           autoBackup: answers.autoBackup,
           strictDependencies: answers.strictDependencies,
           heartbeatInterval: answers.heartbeatInterval * 1000,
