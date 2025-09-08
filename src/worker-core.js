@@ -576,6 +576,108 @@ class WorkerCore extends EventEmitter {
   }
 
   /**
+   * Get comprehensive worker status for user queries
+   */
+  async getWorkerStatus() {
+    const memStats = this.getMemoryStats();
+    const systemState = await this.loadSystemState();
+    const otherWorkers = Object.entries(systemState.active_workers || {})
+      .filter(([id]) => id !== this.workerId)
+      .map(([id, worker]) => ({
+        id,
+        group: worker.group,
+        status: worker.status,
+        memory: worker.memory,
+        lastSeen: worker.last_heartbeat ? 
+          this.formatTimeAgo(new Date(worker.last_heartbeat)) : 'Unknown'
+      }));
+
+    return {
+      // Current worker info
+      self: {
+        workerId: this.workerId,
+        groupId: this.groupId,
+        status: this.isRunning ? 'working' : 'stopped',
+        currentTask: this.currentTask,
+        memory: {
+          current: memStats.current,
+          limit: memStats.limit, 
+          usage: memStats.usage
+        },
+        lockedFiles: [...this.acquiredLocks]
+      },
+      
+      // System overview
+      system: {
+        totalWorkers: Object.keys(systemState.active_workers || {}).length,
+        maxWorkers: systemState.system_info?.max_workers || 6,
+        totalFileLocks: Object.keys(systemState.file_locks || {}).length,
+        healthy: systemState.system_info?.healthy !== false
+      },
+      
+      // Other workers
+      otherWorkers,
+      
+      // Dependencies
+      dependencies: systemState.dependencies || {},
+      
+      // Recent activity (if available)
+      recentActivity: systemState.recent_activity || []
+    };
+  }
+
+  /**
+   * Format user-friendly status response
+   */
+  async getStatusResponse() {
+    const status = await this.getWorkerStatus();
+    
+    let response = `🤖 Current Status:\n`;
+    response += `Worker ID: ${status.self.workerId}\n`;
+    response += `Group: ${status.self.groupId}\n`;
+    
+    if (status.self.currentTask) {
+      response += `Task: ${status.self.currentTask}\n`;
+    }
+    
+    response += `Memory: ${status.self.memory.current}MB / ${status.self.memory.limit}MB (${status.self.memory.usage}%)\n`;
+    
+    if (status.self.lockedFiles.length > 0) {
+      response += `Locked Files: ${status.self.lockedFiles.join(', ')}\n`;
+    }
+    
+    response += `\n🔄 Coordination Status:\n`;
+    
+    if (status.otherWorkers.length > 0) {
+      status.otherWorkers.forEach(worker => {
+        const memInfo = worker.memory ? 
+          ` - Memory ${worker.memory.usage}%` : '';
+        response += `- ${worker.id} (${worker.group}): ${worker.status}${memInfo}\n`;
+      });
+    } else {
+      response += `- No other workers active\n`;
+    }
+    
+    response += `System ${status.system.healthy ? 'healthy ✅' : 'unhealthy ❌'}`;
+    
+    return response;
+  }
+
+  /**
+   * Format time ago helper
+   */
+  formatTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    
+    if (diffSecs < 60) return `${diffSecs}s ago`;
+    if (diffMins < 60) return `${diffMins}m ago`;
+    return date.toLocaleTimeString();
+  }
+
+  /**
    * Cleanup and shutdown
    */
   async cleanup() {

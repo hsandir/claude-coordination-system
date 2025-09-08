@@ -347,6 +347,141 @@ claude-worker --id=claude_c --standby
 
 ---
 
+## 🤖 User Interaction & Coordination Awareness
+
+### Real-time Status Queries
+When users ask about the coordination system, Claude instances can respond intelligently:
+
+**User:** "What are you working on right now?"
+**Claude Response:**
+```
+🤖 Current Status:
+Worker ID: claude_main  
+Group: TYPESCRIPT
+Task: Fixing interface definitions in src/components/
+Memory: 145MB / 256MB (57%)
+Progress: 3/8 TypeScript errors resolved
+Locked Files: src/types/user.ts, src/interfaces/api.ts
+
+🔄 Coordination Status:
+- claude_eslint (ESLINT): Waiting for TYPESCRIPT completion
+- claude_ui (UI): Processing components (2 files locked)
+System healthy ✅
+```
+
+**User:** "How many Claude instances are working on this project?"
+**Claude Response:**
+```
+👥 Active Workers: 3/6
+🔧 claude_main (TYPESCRIPT): Working - Memory 57%
+⏸️  claude_eslint (ESLINT): Waiting - Depends on TYPESCRIPT  
+🎨 claude_ui (UI): Working - Memory 71%
+📊 System load: Optimal
+```
+
+### Status Command Integration
+Each Claude can report system status on demand:
+```bash
+# In any worker terminal, Claude can respond to:
+# "Show me the coordination status"
+# "What's the current system state?"  
+# "How are other Claude instances doing?"
+```
+
+### Automatic Coordination Awareness
+✅ **Self-aware**: Each Claude knows its role and current task  
+✅ **System-aware**: Can report on other workers' status  
+✅ **Progress-aware**: Tracks completion percentage  
+✅ **Resource-aware**: Memory, locks, dependencies
+
+---
+
+## 📊 Monitoring Dashboard Examples
+
+### Terminal Monitor Output
+```bash
+claude-monitor
+```
+
+**Real-time Display:**
+```
+🤖 Multi-Claude Coordination Monitor
+Project: agendaiq | 2025-09-08 16:45:23
+═══════════════════════════════════════════════════════════════════════════
+
+📈 System Overview:
+  Active Workers: 3
+  File Locks: 5
+  Tasks: 2/6 completed  
+  Health: Healthy ✅
+
+👥 Active Workers:
+  🔧 claude_main (TYPESCRIPT)
+    Status: Working
+    Memory: 145MB / 256MB (57%) ✅
+    Last seen: 3s ago
+    Task: Fixing interface definitions
+
+  ⏳ claude_eslint (ESLINT)  
+    Status: Waiting
+    Memory: 89MB / 256MB (35%) ✅
+    Last seen: 5s ago
+    Task: Waiting for TYPESCRIPT completion
+
+  🎨 claude_ui (UI)
+    Status: Working  
+    Memory: 182MB / 256MB (71%) ⚠️
+    Last seen: 2s ago
+    Task: Updating component interfaces
+
+🔒 File Locks:
+  🔒 src/types/user.ts → claude_main
+  🔒 src/interfaces/api.ts → claude_main  
+  🔒 src/components/Button.tsx → claude_ui
+  🔒 src/components/Form.tsx → claude_ui
+  🔒 src/hooks/useAuth.ts → claude_ui
+
+📋 Task Progress:
+  ✅ BUNDLE: Bundle & Dependencies - Completed
+  🔧 TYPESCRIPT: TypeScript & Build System - In Progress (claude_main)
+  ⏳ ESLINT: ESLint & Code Quality - Waiting (depends on TYPESCRIPT)  
+  🔧 UI: UI Components & Pages - In Progress (claude_ui)
+  ⏸️  API: API Routes & Backend - Ready
+  ⏸️  DATABASE: Database & Performance - Ready
+
+📝 Recent Activity:
+  16:45:20 INFO  claude_main started TypeScript fixes
+  16:45:18 INFO  claude_ui locked src/components/Button.tsx  
+  16:45:15 INFO  System initialized with 3 workers
+  16:45:12 INFO  Coordinator started on port 7777
+```
+
+### Compact Monitor Mode
+```bash
+claude-monitor --compact
+```
+```
+🤖 Multi-Claude Monitor | agendaiq | 16:45:23
+Workers: 3/6 | Locks: 5 | Tasks: 2/6 | Health: ✅
+claude_main(TS): Working 57% | claude_eslint(ES): Waiting 35% | claude_ui(UI): Working 71%
+```
+
+### Web Dashboard
+```bash
+claude-monitor --web --port=8888
+# Opens: http://localhost:8888
+```
+
+**Web Interface Features:**
+- 📊 Real-time charts and graphs
+- 🔄 Auto-refresh every 2 seconds
+- 📱 Mobile-responsive design
+- 📈 Memory usage trending
+- 🔍 Detailed worker inspection
+- 💾 Export system metrics
+
+---
+
 ## 🧠 Memory Management & Performance
 
 ### Automatic Resource Management
