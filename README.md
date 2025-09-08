@@ -5,7 +5,7 @@
 
 ### Global Installation
 ```bash
-npm install -g @hs/multi-claude-coordinator
+npm install -g claude-coordination-system
 ```
 
 ### Initialize Project
@@ -207,19 +207,19 @@ module.exports = {
 
 ### Method 1: NPM Global Install
 ```bash
-npm install -g @hs/multi-claude-coordinator
+npm install -g claude-coordination-system
 ```
 
 ### Method 2: Local Project Install
 ```bash
-npm install --save-dev @hs/multi-claude-coordinator
+npm install --save-dev claude-coordination-system
 npx claude-coord init
 ```
 
 ### Method 3: Direct Clone
 ```bash
-git clone https://github.com/hs/multi-claude-coordinator.git
-cd multi-claude-coordinator
+git clone https://github.com/hsandir/claude-coordination-system.git
+cd claude-coordination-system
 npm install
 npm link  # Global access
 ```
