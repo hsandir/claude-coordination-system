@@ -14,6 +14,7 @@ const { machineIdSync } = require('node-machine-id');
 const CoordinatorCore = require('../src/coordinator-core');
 const ProjectDetector = require('../src/project-detector');
 const ConfigManager = require('../src/config-manager');
+const WelcomeGuide = require('../src/welcome-guide');
 
 const program = new Command();
 
@@ -233,6 +234,324 @@ program
       
     } catch (error) {
       console.error(chalk.red('❌ Config operation failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Restart coordinator (stops current, starts new)
+program
+  .command('restart')
+  .description('Restart coordination server')
+  .option('-p, --port <port>', 'Server port', '7777')
+  .option('-m, --mode <mode>', 'Mode (dev|prod)', 'prod')
+  .action(async (options) => {
+    try {
+      console.log(chalk.yellow('🔄 Restarting coordinator...'));
+      
+      const projectRoot = process.cwd();
+      const coordinator = new CoordinatorCore(projectRoot);
+      
+      // Stop existing coordinator if running
+      try {
+        await coordinator.stop();
+        console.log(chalk.green('✅ Existing coordinator stopped'));
+      } catch (error) {
+        console.log(chalk.gray('ℹ️  No running coordinator found'));
+      }
+      
+      // Wait a moment
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Start new coordinator
+      const newCoordinator = new CoordinatorCore(projectRoot, {
+        port: parseInt(options.port),
+        mode: options.mode
+      });
+      
+      await newCoordinator.start();
+      
+      console.log(chalk.green(`✅ Coordinator restarted on port ${options.port}`));
+      console.log(chalk.yellow('📊 Open http://localhost:' + options.port + ' for web dashboard'));
+      
+      // Graceful shutdown
+      process.on('SIGINT', async () => {
+        console.log(chalk.yellow('\n🛑 Shutting down coordinator...'));
+        await newCoordinator.stop();
+        process.exit(0);
+      });
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Coordinator restart failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Remove worker from system
+program
+  .command('remove-worker')
+  .description('Remove a worker from the coordination system')
+  .option('-w, --worker <workerId>', 'Worker ID to remove')
+  .action(async (options) => {
+    try {
+      if (!options.worker) {
+        console.error(chalk.red('❌ Worker ID is required. Use --worker <workerId>'));
+        process.exit(1);
+      }
+      
+      const projectRoot = process.cwd();
+      const coordinator = new CoordinatorCore(projectRoot);
+      
+      console.log(chalk.yellow(`🗑️  Removing worker: ${options.worker}...`));
+      
+      const result = await coordinator.removeWorker(options.worker);
+      
+      if (result.success) {
+        console.log(chalk.green(`✅ Worker ${options.worker} removed successfully`));
+        if (result.releasedFiles && result.releasedFiles.length > 0) {
+          console.log(chalk.blue(`🔓 Released file locks: ${result.releasedFiles.join(', ')}`));
+        }
+      } else {
+        console.log(chalk.yellow(`⚠️  Worker ${options.worker} not found or already removed`));
+      }
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Failed to remove worker:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Change worker group
+program
+  .command('reassign-worker')
+  .description('Reassign a worker to a different group')
+  .option('-w, --worker <workerId>', 'Worker ID to reassign')
+  .option('-g, --group <groupId>', 'New group ID')
+  .action(async (options) => {
+    try {
+      if (!options.worker || !options.group) {
+        console.error(chalk.red('❌ Both --worker and --group are required'));
+        process.exit(1);
+      }
+      
+      const projectRoot = process.cwd();
+      const coordinator = new CoordinatorCore(projectRoot);
+      
+      console.log(chalk.yellow(`🔄 Reassigning ${options.worker} to ${options.group}...`));
+      
+      const result = await coordinator.reassignWorker(options.worker, options.group);
+      
+      if (result.success) {
+        console.log(chalk.green(`✅ Worker ${options.worker} reassigned to ${options.group}`));
+      } else {
+        console.log(chalk.red(`❌ ${result.error}`));
+      }
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Failed to reassign worker:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Help command with detailed explanations
+program
+  .command('help-detailed')
+  .description('Show detailed help and usage examples')
+  .action(() => {
+    console.log(chalk.blue('🤖 Multi-Claude Coordination System - Detailed Help\n'));
+    
+    console.log(chalk.cyan('📚 Basic Usage:'));
+    console.log('  1. Initialize: claude-coord init');
+    console.log('  2. Start coordinator: claude-coord start');
+    console.log('  3. Start worker: claude-worker --id=claude_1 --group=TYPESCRIPT');
+    console.log('  4. Monitor: claude-monitor\n');
+    
+    console.log(chalk.cyan('🔧 Coordinator Management:'));
+    console.log('  claude-coord start          # Start coordinator');
+    console.log('  claude-coord restart        # Restart coordinator');
+    console.log('  claude-coord stop           # Stop coordinator');
+    console.log('  claude-coord status         # Check system status\n');
+    
+    console.log(chalk.cyan('👥 Worker Management:'));
+    console.log('  claude-coord remove-worker --worker=claude_1    # Remove worker');
+    console.log('  claude-coord reassign-worker --worker=claude_1 --group=ESLINT # Change worker group');
+    console.log('  claude-worker --id=claude_1 --standby          # Start in standby mode\n');
+    
+    console.log(chalk.cyan('📋 Project Configuration:'));
+    console.log('  claude-coord list-groups    # Show available work groups');
+    console.log('  claude-coord config --list  # Show global configuration');
+    console.log('  claude-coord config --set key=value # Set configuration\n');
+    
+    console.log(chalk.cyan('🎯 Common Scenarios:'));
+    console.log('  • Change coordinator terminal: claude-coord restart');
+    console.log('  • Remove stuck worker: claude-coord remove-worker --worker=claude_1');
+    console.log('  • Switch worker task: claude-coord reassign-worker --worker=claude_1 --group=UI');
+    console.log('  • Add worker dynamically: claude-worker --id=claude_new --standby\n');
+    
+    console.log(chalk.cyan('🔍 Monitoring:'));
+    console.log('  claude-monitor              # Real-time dashboard');
+    console.log('  claude-monitor --compact     # Compact view');
+    console.log('  claude-coord status         # Quick status check\n');
+    
+    console.log(chalk.yellow('💡 Pro Tips:'));
+    console.log('  • Use standby mode for flexible worker assignment');
+    console.log('  • Monitor memory usage with claude-monitor');
+    console.log('  • Create custom work groups in claude-coord.json');
+    console.log('  • Use multiple terminals for different coordinators');
+  });
+
+// Setup custom rules
+program
+  .command('setup-rules')
+  .description('Setup custom coordination rules')
+  .option('-i, --interactive', 'Interactive rule setup')
+  .action(async (options) => {
+    try {
+      console.log(chalk.blue('📜 Setting up custom coordination rules...'));
+      
+      const projectRoot = process.cwd();
+      const configManager = new ConfigManager();
+      
+      if (options.interactive) {
+        const answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'maxWorkers',
+            message: 'Maximum workers allowed:',
+            default: '6'
+          },
+          {
+            type: 'input',
+            name: 'memoryLimit',
+            message: 'Memory limit per worker (MB):',
+            default: '256'
+          },
+          {
+            type: 'confirm',
+            name: 'autoBackup',
+            message: 'Enable automatic backups before changes?',
+            default: true
+          },
+          {
+            type: 'confirm',
+            name: 'strictDependencies',
+            message: 'Enforce strict dependency checking?',
+            default: true
+          },
+          {
+            type: 'number',
+            name: 'heartbeatInterval',
+            message: 'Worker heartbeat interval (seconds):',
+            default: 15
+          }
+        ]);
+        
+        const rulesConfig = {
+          maxWorkers: parseInt(answers.maxWorkers),
+          memoryLimitMB: parseInt(answers.memoryLimit),
+          autoBackup: answers.autoBackup,
+          strictDependencies: answers.strictDependencies,
+          heartbeatInterval: answers.heartbeatInterval * 1000,
+          createdAt: new Date().toISOString()
+        };
+        
+        await configManager.saveCustomRules(projectRoot, rulesConfig);
+        
+        console.log(chalk.green('✅ Custom rules configured successfully!'));
+        console.log(chalk.blue('📄 Rules saved to: .claude-coord/custom-rules.json'));
+      } else {
+        console.log(chalk.yellow('Use --interactive for guided setup'));
+        console.log(chalk.gray('Or manually edit .claude-coord/custom-rules.json'));
+      }
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Rules setup failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Welcome and first-time setup
+program
+  .command('welcome')
+  .description('Show welcome guide and first-time setup')
+  .action(async () => {
+    try {
+      const guide = new WelcomeGuide();
+      
+      if (await guide.isFirstTime()) {
+        await guide.showWelcome();
+        await guide.firstTimeSetup();
+      } else {
+        console.log(chalk.blue('🎉 Welcome back to Multi-Claude Coordination!'));
+        console.log(chalk.yellow('Use claude-coord help-detailed for all commands'));
+      }
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Welcome guide failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Context-sensitive help
+program
+  .command('help-context')
+  .description('Show contextual help based on situation')
+  .option('--situation <type>', 'Specific situation (coordinator_failed, worker_stuck, memory_issues)')
+  .action(async (options) => {
+    try {
+      const guide = new WelcomeGuide();
+      await guide.showContextualHelp(options.situation);
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Help context failed:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Quick setup command
+program
+  .command('quick-setup')
+  .description('Quick setup for experienced users')
+  .option('--workers <count>', 'Number of workers to start', '2')
+  .action(async (options) => {
+    try {
+      console.log(chalk.blue('🚀 Quick Setup Mode'));
+      console.log(chalk.gray('─'.repeat(30)));
+      
+      const workerCount = parseInt(options.workers);
+      const projectRoot = process.cwd();
+      
+      // Check if initialized
+      const configPath = path.join(projectRoot, 'claude-coord.json');
+      if (!(await fs.pathExists(configPath))) {
+        console.log(chalk.yellow('📋 Initializing project...'));
+        
+        const configManager = new ConfigManager();
+        await configManager.createProjectConfig(projectRoot, {
+          projectType: 'auto-detected',
+          maxWorkers: workerCount + 1 // +1 for coordinator
+        });
+      }
+      
+      console.log(chalk.green('✅ Project ready'));
+      console.log(chalk.blue('📋 Next Steps:'));
+      console.log();
+      console.log(chalk.yellow('Terminal 1 (Coordinator):'));
+      console.log('  claude-coord start');
+      console.log();
+      
+      for (let i = 1; i <= workerCount; i++) {
+        console.log(chalk.yellow(`Terminal ${i + 1} (Worker ${i}):`));
+        console.log(`  claude-worker --id=claude_${i} --standby --verbose`);
+      }
+      
+      console.log();
+      console.log(chalk.yellow('Monitor Terminal:'));
+      console.log('  claude-monitor');
+      console.log();
+      console.log(chalk.green('💡 Tip: Start coordinator first, then workers will connect automatically'));
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Quick setup failed:'), error.message);
       process.exit(1);
     }
   });

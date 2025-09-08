@@ -383,6 +383,69 @@ class ConfigManager {
     
     target[lastKey] = value;
   }
+
+  /**
+   * Save custom coordination rules
+   */
+  async saveCustomRules(projectRoot, rulesConfig) {
+    const rulesDir = path.join(projectRoot, '.claude-coord');
+    const rulesFile = path.join(rulesDir, 'custom-rules.json');
+    
+    await fs.ensureDir(rulesDir);
+    
+    const fullRulesConfig = {
+      ...rulesConfig,
+      project_path: projectRoot,
+      updated_at: new Date().toISOString()
+    };
+    
+    await fs.writeJson(rulesFile, fullRulesConfig, { spaces: 2 });
+    
+    // Also update the main project config
+    const projectConfig = await this.loadProjectConfig(projectRoot);
+    projectConfig.custom_rules = rulesConfig;
+    
+    const configPath = path.join(projectRoot, this.projectConfigFile);
+    await fs.writeJson(configPath, projectConfig, { spaces: 2 });
+    
+    return fullRulesConfig;
+  }
+
+  /**
+   * Load custom coordination rules
+   */
+  async loadCustomRules(projectRoot) {
+    const rulesFile = path.join(projectRoot, '.claude-coord', 'custom-rules.json');
+    
+    if (await fs.pathExists(rulesFile)) {
+      return await fs.readJson(rulesFile);
+    }
+    
+    // Return default rules if no custom rules exist
+    return {
+      maxWorkers: 6,
+      memoryLimitMB: 256,
+      autoBackup: true,
+      strictDependencies: true,
+      heartbeatInterval: 15000
+    };
+  }
+
+  /**
+   * Apply custom rules to coordinator options
+   */
+  async applyCustomRules(projectRoot, coordinatorOptions = {}) {
+    const customRules = await this.loadCustomRules(projectRoot);
+    
+    return {
+      ...coordinatorOptions,
+      maxWorkers: customRules.maxWorkers || coordinatorOptions.maxWorkers || 6,
+      heartbeatInterval: customRules.heartbeatInterval || coordinatorOptions.heartbeatInterval || 15000,
+      staleWorkerTimeout: (customRules.heartbeatInterval || 15000) * 4, // 4x heartbeat
+      autoBackup: customRules.autoBackup !== false,
+      strictDependencies: customRules.strictDependencies !== false
+    };
+  }
 }
 
 module.exports = ConfigManager;

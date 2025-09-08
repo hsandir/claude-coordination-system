@@ -416,6 +416,100 @@ class CoordinatorCore extends EventEmitter {
     state.active_workers = {};
     await this.saveSystemState(state);
   }
+
+  /**
+   * Remove a specific worker from the system
+   */
+  async removeWorker(workerId) {
+    const state = await this.loadSystemState();
+    
+    if (!state.active_workers[workerId]) {
+      return { success: false, error: 'Worker not found' };
+    }
+
+    const worker = state.active_workers[workerId];
+    const releasedFiles = [];
+
+    // Release all file locks held by this worker
+    for (const [filePath, lockedBy] of Object.entries(state.file_locks)) {
+      if (lockedBy === workerId) {
+        delete state.file_locks[filePath];
+        releasedFiles.push(filePath);
+      }
+    }
+
+    // Remove worker from active workers
+    delete state.active_workers[workerId];
+    
+    // Update task progress
+    if (state.task_progress.active_groups > 0) {
+      state.task_progress.active_groups--;
+    }
+
+    await this.saveSystemState(state);
+    
+    console.log(chalk.yellow(`👋 Worker removed: ${workerId} (${worker.group})`));
+    this.emit('worker:removed', { workerId, group: worker.group, releasedFiles });
+
+    return { success: true, releasedFiles };
+  }
+
+  /**
+   * Reassign a worker to a different group
+   */
+  async reassignWorker(workerId, newGroupId) {
+    const state = await this.loadSystemState();
+    
+    if (!state.active_workers[workerId]) {
+      return { success: false, error: 'Worker not found' };
+    }
+
+    // Check if new group exists
+    if (!state.dependencies[newGroupId]) {
+      return { success: false, error: `Group '${newGroupId}' not found` };
+    }
+
+    const worker = state.active_workers[workerId];
+    const oldGroup = worker.group;
+    
+    // Release current file locks
+    const releasedFiles = [];
+    for (const [filePath, lockedBy] of Object.entries(state.file_locks)) {
+      if (lockedBy === workerId) {
+        delete state.file_locks[filePath];
+        releasedFiles.push(filePath);
+      }
+    }
+
+    // Update worker group
+    state.active_workers[workerId] = {
+      ...worker,
+      group: newGroupId,
+      status: 'reassigned',
+      reassigned_at: new Date().toISOString(),
+      previous_group: oldGroup,
+      current_files: [],
+      progress: {
+        total_tasks: 0,
+        completed_tasks: 0,
+        current_task: null
+      }
+    };
+
+    await this.saveSystemState(state);
+    
+    console.log(chalk.blue(`🔄 Worker reassigned: ${workerId} (${oldGroup} → ${newGroupId})`));
+    this.emit('worker:reassigned', { workerId, oldGroup, newGroupId, releasedFiles });
+
+    return { success: true };
+  }
+
+  /**
+   * Stop all coordination (alias for stopAllWorkers for CLI compatibility)
+   */
+  async stopAll() {
+    return await this.stopAllWorkers();
+  }
 }
 
 module.exports = CoordinatorCore;
