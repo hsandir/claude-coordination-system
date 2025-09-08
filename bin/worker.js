@@ -10,6 +10,7 @@ const chalk = require('chalk');
 const path = require('path');
 const WorkerCore = require('../src/worker-core');
 const ConfigManager = require('../src/config-manager');
+const WorkerTerminalInterface = require('../src/worker-terminal-interface');
 
 const program = new Command();
 
@@ -154,6 +155,10 @@ async function main() {
         standbyMode: true
       });
       
+      // Initialize terminal interface for standby mode
+      const terminalInterface = new WorkerTerminalInterface(worker);
+      await terminalInterface.start();
+      
       setupStandbyCommands(worker, projectConfig);
       await worker.start();
       return;
@@ -206,8 +211,8 @@ async function main() {
       }
     };
 
-    process.on('SIGINT', () => shutdown('SIGINT'));
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => enhancedShutdown('SIGINT'));
+    process.on('SIGTERM', () => enhancedShutdown('SIGTERM'));
     
     // Handle uncaught errors
     process.on('uncaughtException', async (error) => {
@@ -222,6 +227,30 @@ async function main() {
       process.exit(1);
     });
 
+    // Initialize terminal interface
+    const terminalInterface = new WorkerTerminalInterface(worker);
+    
+    // Update shutdown to include terminal interface
+    const enhancedShutdown = async (signal) => {
+      if (isShuttingDown) return;
+      isShuttingDown = true;
+      
+      console.log(chalk.yellow(`\n🛑 Received ${signal}, shutting down worker...`));
+      
+      try {
+        await terminalInterface.stop();
+        await worker.shutdown();
+        console.log(chalk.green('✅ Worker shutdown complete'));
+        process.exit(0);
+      } catch (error) {
+        console.error(chalk.red('❌ Error during shutdown:'), error.message);
+        process.exit(1);
+      }
+    };
+
+    // Start terminal interface
+    await terminalInterface.start();
+    
     // Start worker
     await worker.start();
     

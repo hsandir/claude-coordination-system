@@ -748,6 +748,46 @@ class WorkerCore extends EventEmitter {
     return true;
   }
 
+  /**
+   * Pause worker operations (used when coordinator disconnects)
+   */
+  async pause() {
+    if (!this.isRunning) return;
+    
+    console.log(chalk.yellow(`⏸️  ${this.workerId} pausing operations`));
+    this.isRunning = false;
+    this.currentTask = null;
+    
+    // Stop heartbeat
+    if (this.heartbeatTimer) {
+      clearTimeout(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    
+    await this.updateStatus('paused');
+    this.emit('paused');
+  }
+
+  /**
+   * Resume worker operations (used when coordinator reconnects)
+   */
+  async resume() {
+    if (this.isRunning) return;
+    
+    console.log(chalk.green(`▶️  ${this.workerId} resuming operations`));
+    this.isRunning = true;
+    
+    await this.updateStatus('resuming');
+    this.emit('resumed');
+    
+    // Restart execution
+    this.executeTasks().then(() => {
+      console.log(chalk.green(`🎉 ${this.workerId} completed all tasks for ${this.groupId}`));
+    }).catch((error) => {
+      console.error(chalk.red(`❌ ${this.workerId} failed:`, error.message));
+    });
+  }
+
   async shutdown() {
     console.log(chalk.yellow(`🛑 ${this.workerId} shutting down...`));
     this.isRunning = false;
