@@ -7,6 +7,8 @@ const fs = require('fs-extra');
 const path = require('path');
 const EventEmitter = require('events');
 const chalk = require('chalk');
+const { logCoordinator, logError, logPerformance } = require('./development-logger');
+const WebDashboard = require('./web-dashboard');
 
 class CoordinatorCore extends EventEmitter {
   constructor(projectRoot, options = {}) {
@@ -30,6 +32,7 @@ class CoordinatorCore extends EventEmitter {
     this.workers = new Map();
     this.fileLocks = new Map();
     this.messageQueue = [];
+    this.webDashboard = new WebDashboard(this, this.options.port);
     
     console.log(`🤖 Coordinator initialized for: ${path.basename(projectRoot)}`);
   }
@@ -136,6 +139,13 @@ class CoordinatorCore extends EventEmitter {
 
     console.log(chalk.blue('🚀 Starting Multi-Claude Coordination System...'));
     
+    await logCoordinator('Starting System', {
+      description: 'Initializing Multi-Claude coordination system',
+      projectRoot: this.projectRoot,
+      maxWorkers: this.options.maxWorkers,
+      port: this.options.port
+    });
+    
     // Initialize system state
     await this.initializeSystem();
     
@@ -145,8 +155,17 @@ class CoordinatorCore extends EventEmitter {
     this.startMessageProcessor();
     this.startFileWatcher();
     
+    // Start web dashboard
+    await this.webDashboard.start();
+    
     console.log(chalk.green('✅ Coordinator started successfully'));
     console.log(chalk.blue(`📊 Dashboard: http://localhost:${this.options.port}`));
+    
+    await logCoordinator('System Started', {
+      result: 'SUCCESS',
+      dashboardUrl: `http://localhost:${this.options.port}`,
+      notes: 'Coordination system fully operational'
+    });
     
     this.emit('started');
     return true;
@@ -166,6 +185,9 @@ class CoordinatorCore extends EventEmitter {
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     if (this.messageTimer) clearInterval(this.messageTimer);
     if (this.fileWatcher) this.fileWatcher.close();
+    
+    // Stop web dashboard
+    if (this.webDashboard) await this.webDashboard.stop();
     
     // Stop all workers
     await this.stopAllWorkers();
@@ -371,7 +393,15 @@ class CoordinatorCore extends EventEmitter {
     // Mark stale workers as failed
     for (const workerId of staleWorkers) {
       await this.updateWorkerStatus(workerId, { status: 'stale' });
-      console.log(chalk.yellow(`⚠️  Worker ${workerId} marked as stale`));
+      // Only log stale workers internally, don't show to user unless verbose mode
+      if (this.options.verbose) {
+        console.log(chalk.gray(`🔇 Worker ${workerId} marked as stale (internal)`));
+      }
+      
+      await logCoordinator('Worker Stale', {
+        description: `Worker marked as stale due to missed heartbeat`,
+        notes: `Worker: ${workerId}, Last heartbeat: ${new Date(worker.last_heartbeat).toISOString()}`
+      });
     }
   }
 
@@ -450,6 +480,13 @@ class CoordinatorCore extends EventEmitter {
     
     console.log(chalk.yellow(`👋 Worker removed: ${workerId} (${worker.group})`));
     this.emit('worker:removed', { workerId, group: worker.group, releasedFiles });
+
+    await logCoordinator('Worker Removed', {
+      description: `Successfully removed worker from coordination system`,
+      result: 'SUCCESS',
+      files: releasedFiles,
+      notes: `Worker: ${workerId} (${worker.group}), Released ${releasedFiles.length} file locks`
+    });
 
     return { success: true, releasedFiles };
   }

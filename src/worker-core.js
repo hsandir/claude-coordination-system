@@ -10,6 +10,7 @@ const { promisify } = require('util');
 const chalk = require('chalk');
 const EventEmitter = require('events');
 const MemoryManager = require('./memory-manager');
+const { logWorker, logError, logPerformance } = require('./development-logger');
 
 const execAsync = promisify(exec);
 
@@ -61,6 +62,12 @@ class WorkerCore extends EventEmitter {
     try {
       console.log(chalk.green(`🚀 ${this.workerId} starting work on ${this.groupId}`));
       
+      await logWorker(this.workerId, 'Starting Worker', {
+        description: `Worker starting with group assignment: ${this.groupId}`,
+        result: 'STARTED',
+        memory: `Memory limit: ${this.options.memoryLimit}MB`
+      });
+      
       // Start memory monitoring
       this.memoryManager.startMonitoring();
       
@@ -86,10 +93,20 @@ class WorkerCore extends EventEmitter {
       // Execute tasks
       await this.executeTasks();
       
-      // Mark as completed
-      await this.updateStatus('completed');
+      // Mark as completed and switch to inactive/standby mode
+      await this.updateStatus('inactive');
       
       console.log(chalk.green(`🎉 ${this.workerId} completed all tasks`));
+      console.log(chalk.yellow(`⏸️  ${this.workerId} switching to inactive mode, waiting for new assignments...`));
+      
+      await logWorker(this.workerId, 'Tasks Completed', {
+        description: `All tasks completed, switching to inactive mode`,
+        result: 'SUCCESS - INACTIVE',
+        notes: `Worker remains active for reassignment`
+      });
+      
+      // Stay alive and wait for reassignment instead of exiting
+      return await this.waitForReassignment();
       
     } catch (error) {
       console.error(chalk.red(`❌ ${this.workerId} failed:`), error.message);
@@ -736,6 +753,38 @@ class WorkerCore extends EventEmitter {
     this.isRunning = false;
     await this.cleanup();
     this.emit('shutdown');
+  }
+
+  /**
+   * Wait for reassignment while in inactive mode
+   */
+  async waitForReassignment() {
+    console.log(chalk.gray(`⏳ ${this.workerId} waiting for new assignments...`));
+    
+    // Check for reassignment every 10 seconds
+    const reassignmentInterval = setInterval(async () => {
+      try {
+        const state = await this.loadCoordinatorState();
+        const worker = state.active_workers[this.workerId];
+        
+        if (worker && worker.status === 'reassigned') {
+          console.log(chalk.blue(`🔄 ${this.workerId} received new assignment: ${worker.group}`));
+          clearInterval(reassignmentInterval);
+          
+          // Update group and restart
+          this.groupId = worker.group;
+          await this.updateStatus('initializing');
+          return await this.executeTasks();
+        }
+      } catch (error) {
+        // Silently handle errors during reassignment check
+      }
+    }, 10000);
+
+    // Keep the worker alive
+    return new Promise(() => {
+      // This promise never resolves, keeping worker alive
+    });
   }
 
   sleep(ms) {

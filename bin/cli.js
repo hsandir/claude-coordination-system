@@ -15,6 +15,7 @@ const CoordinatorCore = require('../src/coordinator-core');
 const ProjectDetector = require('../src/project-detector');
 const ConfigManager = require('../src/config-manager');
 const WelcomeGuide = require('../src/welcome-guide');
+const { logUser, logCommand, logError } = require('../src/development-logger');
 
 const program = new Command();
 
@@ -65,6 +66,7 @@ program
     console.log(chalk.blue('🚀 Initializing Multi-Claude Coordination...'));
     
     try {
+      await logUser('Initialize Project', `claude-coord init ${options.interactive ? '--interactive' : ''}`, 'STARTED');
       const projectRoot = process.cwd();
       const detector = new ProjectDetector(projectRoot);
       const configManager = new ConfigManager();
@@ -109,8 +111,11 @@ program
       console.log('   2. claude-worker --id=claude_a --group=TYPESCRIPT');
       console.log('   3. claude-monitor');
       
+      await logUser('Initialize Project', `claude-coord init ${options.interactive ? '--interactive' : ''}`, 'SUCCESS');
+      
     } catch (error) {
       console.error(chalk.red('❌ Initialization failed:'), error.message);
+      await logError('CLI Init', error);
       process.exit(1);
     }
   });
@@ -125,6 +130,7 @@ program
     console.log(chalk.blue('🖥️  Starting Multi-Claude Coordinator...'));
     
     try {
+      await logUser('Start Coordinator', `claude-coord start --port=${options.port} --mode=${options.mode}`, 'STARTED');
       const projectRoot = process.cwd();
       const coordinator = new CoordinatorCore(projectRoot, {
         port: parseInt(options.port),
@@ -135,16 +141,37 @@ program
       
       console.log(chalk.green(`✅ Coordinator running on port ${options.port}`));
       console.log(chalk.yellow('📊 Open http://localhost:' + options.port + ' for web dashboard'));
+      console.log(chalk.cyan('🎮 Interactive commands available:'));
+      console.log('   Press [M] for monitoring, [W] for workers, [H] for help, [Q] to quit');
+      console.log('   Press [ESC] to return to main view from any screen');
+      
+      await logUser('Start Coordinator', `claude-coord start --port=${options.port} --mode=${options.mode}`, 'SUCCESS');
+      
+      // Start interactive terminal interface (only in TTY mode)
+      let terminalInterface = null;
+      try {
+        if (process.stdin.isTTY && process.stdout.isTTY) {
+          const TerminalInterface = require('../src/terminal-interface');
+          terminalInterface = new TerminalInterface(coordinator);
+          await terminalInterface.start();
+        } else {
+          console.log(chalk.gray('🖥️  Running in non-interactive mode - web dashboard available'));
+        }
+      } catch (error) {
+        console.log(chalk.yellow('⚠️  Terminal interface unavailable, using web dashboard only'));
+      }
       
       // Graceful shutdown
       process.on('SIGINT', async () => {
         console.log(chalk.yellow('\\n🛑 Shutting down coordinator...'));
+        if (terminalInterface) await terminalInterface.stop();
         await coordinator.stop();
         process.exit(0);
       });
       
     } catch (error) {
       console.error(chalk.red('❌ Coordinator start failed:'), error.message);
+      await logError('CLI Start', error);
       process.exit(1);
     }
   });
@@ -155,6 +182,7 @@ program
   .description('Show coordination system status')
   .action(async () => {
     try {
+      await logUser('Check Status', 'claude-coord status', 'STARTED');
       const projectRoot = process.cwd();
       const coordinator = new CoordinatorCore(projectRoot);
       
@@ -176,8 +204,11 @@ program
         });
       }
       
+      await logUser('Check Status', 'claude-coord status', 'SUCCESS');
+      
     } catch (error) {
       console.error(chalk.red('❌ Status check failed:'), error.message);
+      await logError('CLI Status', error);
       process.exit(1);
     }
   });
@@ -319,6 +350,8 @@ program
         process.exit(1);
       }
       
+      await logUser('Remove Worker', `claude-coord remove-worker --worker=${options.worker}`, 'STARTED');
+      
       const projectRoot = process.cwd();
       const coordinator = new CoordinatorCore(projectRoot);
       
@@ -335,8 +368,11 @@ program
         console.log(chalk.yellow(`⚠️  Worker ${options.worker} not found or already removed`));
       }
       
+      await logUser('Remove Worker', `claude-coord remove-worker --worker=${options.worker}`, result.success ? 'SUCCESS' : 'PARTIAL');
+      
     } catch (error) {
       console.error(chalk.red('❌ Failed to remove worker:'), error.message);
+      await logError('CLI Remove Worker', error);
       process.exit(1);
     }
   });
@@ -477,17 +513,21 @@ program
   .description('Show welcome guide and first-time setup')
   .action(async () => {
     try {
+      await logUser('Welcome Guide', 'claude-coord welcome', 'STARTED');
       const guide = new WelcomeGuide();
       
       if (await guide.isFirstTime()) {
         await guide.showWelcome();
         await guide.firstTimeSetup();
+        await logUser('Welcome Guide', 'claude-coord welcome', 'COMPLETED_FIRST_TIME');
       } else {
         console.log(chalk.blue('🎉 Welcome back to Multi-Claude Coordination!'));
         console.log(chalk.yellow('Use claude-coord help-detailed for all commands'));
+        await logUser('Welcome Guide', 'claude-coord welcome', 'COMPLETED_RETURNING_USER');
       }
       
     } catch (error) {
+      await logError('Welcome Guide', error, 'Check welcome-guide.js implementation');
       console.error(chalk.red('❌ Welcome guide failed:'), error.message);
       process.exit(1);
     }
